@@ -33,7 +33,7 @@ def cargar_filas(path):
                 "fecha": r[0],
                 "hora_ini": r[3],
                 "dur": r[5],
-                "pz1": r[8] or 0,
+                "PS": r[8] or 0,
                 "pzr": r[9] or 0,
             })
     return filas
@@ -55,9 +55,9 @@ def calcular_iap_tprod(filas):
 
 
 def tasa_rechazo(filas):
-    pz1 = sum(r["pz1"] for r in filas)
+    PS = sum(r["PS"] for r in filas)
     pzr = sum(r["pzr"] for r in filas)
-    return pzr / pz1 if pz1 else 0.0
+    return pzr / PS if PS else 0.0
 
 
 DISTRIBUCIONES = [
@@ -90,14 +90,14 @@ if __name__ == "__main__":
     mejor_iap = ajustar(iap, "IAP (Intervalo de Arribo de Pedidos)")
     mejor_tprod = ajustar(tprod, "TPROD (Tiempo de Producción por pedido)")
 
-    # --- Ajuste para PZ1 (cantidad PZ1 por pedido) -------------------------
-    pz1_vals = np.array([r["pz1"] for r in filas], dtype=float)
+    # --- Ajuste para PS (cantidad PS por pedido) -------------------------
+    PS_vals = np.array([r["PS"] for r in filas], dtype=float)
     # Filtrar valores no positivos si la distribución debe modelar cantidades >0
-    if len(pz1_vals) == 0:
-        print("No hay datos de PZ1 para ajustar.")
+    if len(PS_vals) == 0:
+        print("No hay datos de PS para ajustar.")
     else:
-        print(f"\nPZ1: n={len(pz1_vals)}, media={np.mean(pz1_vals):.3f}, mediana={np.median(pz1_vals):.3f}")
-        mejor_pz1 = ajustar(pz1_vals, "PZ1 (cantidad por pedido)")
+        print(f"\nPS: n={len(PS_vals)}, media={np.mean(PS_vals):.3f}, mediana={np.median(PS_vals):.3f}")
+        mejor_PS = ajustar(PS_vals, "PS (cantidad por pedido)")
 
     print(f"\nTasa de rechazo real (PR): {tr*100:.3f}%")
     print(f"Pedestales productivos activos en el dataset: {len(set(r['pedestal'] for r in filas))}")
