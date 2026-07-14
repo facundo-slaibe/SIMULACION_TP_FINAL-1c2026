@@ -1,6 +1,5 @@
 """
-Ajuste de FDPs para el TP de la planta de soldadura, usando la biblioteca
-`fitter` (mismo enfoque que el paper aprobado de vigilancia con drones).
+Ajuste de FDPs para el TP de la planta de soldadura, usando la biblioteca `fitter`.
 
 Requiere: pip install fitter pandas openpyxl scipy matplotlib
 
