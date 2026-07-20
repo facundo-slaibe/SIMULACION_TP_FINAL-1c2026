@@ -5,7 +5,7 @@ Variables de control:
 - CP: cantidad de pedestales productivos instalados.
 - CO_T1, CO_T2 y CO_T3: operarios activos en cada turno de 8 horas.
 
-Cada pedestal necesita cinco operarios simultáneos para producir. Por eso, la
+Cada pedestal necesita un operario para producir. Por eso, la
 cantidad de pedestales habilitados en un turno es::
 
     min(CP, operarios_del_turno // OPERARIOS_POR_PEDESTAL)
@@ -18,11 +18,13 @@ Las FDP de IAP, TPROD y PS se ajustaron con ``FDPs.py`` sobre los datos reales.
 
 Uso:
     python simulacion_soldadura.py
-    python simulacion_soldadura.py --cp 4 --co-t1 16 --co-t2 14 --co-t3 15
+    python simulacion_soldadura.py --cp 4 --co-t1 4 --co-t2 3 --co-t3 4
 """
 
 import argparse
 from collections import deque
+from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from scipy import stats
@@ -31,7 +33,9 @@ from scipy import stats
 HV = float("inf")
 MINUTOS_POR_TURNO = 8 * 60
 MINUTOS_POR_DIA = 24 * 60
-OPERARIOS_POR_PEDESTAL = 5
+OPERARIOS_POR_PEDESTAL = 1
+ARCHIVO_RESULTADOS = Path(__file__).with_name("resultados_simulacion.txt")
+HORAS_SIMULACION = 8640  # 1 año
 
 # FDP ajustadas con Fitter sobre los datos reales (ver FDPs.py).
 IAP_PARAMS = dict(
@@ -45,24 +49,26 @@ TPROD_PARAMS = dict(
     scale=13.516054079221052,
 )
 PS_PARAMS = dict(a=0.35910100165214315, loc=0.0, scale=86.92320999802118)
-TASA_RECHAZO = 0.00517
 
 
-# Doce escenarios iniciales: cuatro dotaciones para cada valor de CP.
+# Veintidós escenarios iniciales para pruebas con un operario por pedestal.
 # Se mantienen explícitos para que sea sencillo modificarlos arbitrariamente.
 ESCENARIOS = [
-    {"nombre": "CP3-A", "cp": 3, "co_t1": 15, "co_t2": 15, "co_t3": 15},
-    {"nombre": "CP3-B", "cp": 3, "co_t1": 14, "co_t2": 16, "co_t3": 15},
-    {"nombre": "CP3-C", "cp": 3, "co_t1": 13, "co_t2": 15, "co_t3": 14},
-    {"nombre": "CP3-D", "cp": 3, "co_t1": 16, "co_t2": 14, "co_t3": 15},
-    {"nombre": "CP4-A", "cp": 4, "co_t1": 20, "co_t2": 20, "co_t3": 20},
-    {"nombre": "CP4-B", "cp": 4, "co_t1": 19, "co_t2": 21, "co_t3": 20},
-    {"nombre": "CP4-C", "cp": 4, "co_t1": 18, "co_t2": 20, "co_t3": 19},
-    {"nombre": "CP4-D", "cp": 4, "co_t1": 16, "co_t2": 14, "co_t3": 15},
-    {"nombre": "CP5-A", "cp": 5, "co_t1": 25, "co_t2": 25, "co_t3": 25},
-    {"nombre": "CP5-B", "cp": 5, "co_t1": 24, "co_t2": 26, "co_t3": 25},
-    {"nombre": "CP5-C", "cp": 5, "co_t1": 23, "co_t2": 25, "co_t3": 24},
-    {"nombre": "CP5-D", "cp": 5, "co_t1": 26, "co_t2": 24, "co_t3": 25},
+    {"nombre": "CP5-A", "cp": 5, "co_t1": 5, "co_t2": 5, "co_t3": 5},
+    {"nombre": "CP5-B", "cp": 5, "co_t1": 4, "co_t2": 4, "co_t3": 4},
+    {"nombre": "CP5-C", "cp": 5, "co_t1": 5, "co_t2": 4, "co_t3": 4},
+    {"nombre": "CP6", "cp": 6, "co_t1": 6, "co_t2": 6, "co_t3": 6},
+    {"nombre": "CP7-A", "cp": 7, "co_t1": 7, "co_t2": 7, "co_t3": 7},
+    {"nombre": "CP7-B", "cp": 7, "co_t1": 8, "co_t2": 8, "co_t3": 8},
+    {"nombre": "CP7-C", "cp": 7, "co_t1": 6, "co_t2": 7, "co_t3": 6},
+    {"nombre": "CP7-D", "cp": 7, "co_t1": 7, "co_t2": 6, "co_t3": 7},
+    {"nombre": "CP8-A", "cp": 8, "co_t1": 8, "co_t2": 8, "co_t3": 8},
+    {"nombre": "CP8-B", "cp": 8, "co_t1": 9, "co_t2": 9, "co_t3": 9},
+    {"nombre": "CP8-C", "cp": 8, "co_t1": 7, "co_t2": 8, "co_t3": 7},
+    {"nombre": "CP8-D", "cp": 8, "co_t1": 8, "co_t2": 7, "co_t3": 8},
+    {"nombre": "CP10", "cp": 10, "co_t1": 10, "co_t2": 9, "co_t3": 10},
+    {"nombre": "CP12-A", "cp": 12, "co_t1": 12, "co_t2": 11, "co_t3": 10},
+    {"nombre": "CP12-B", "cp": 12, "co_t1": 8, "co_t2": 8, "co_t3": 8},
 ]
 
 
@@ -103,6 +109,7 @@ def validar_controles(cp, co_t1, co_t2, co_t3, horas):
     if horas <= 0:
         raise ValueError("El horizonte de simulación debe ser mayor que cero")
 
+TASA_RECHAZO = 0.00517
 
 def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
     validar_controles(cp, co_t1, co_t2, co_t3, horas)
@@ -127,6 +134,8 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
     piezas_rechazadas = 0
     minutos_capacidad = 0.0
     minutos_ociosos = 0.0
+    minutos_operarios = 0.0
+    minutos_operarios_ociosos = 0.0
     cola_maxima = 0
 
     while tiempo < tf:
@@ -134,10 +143,15 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
         siguiente = min(proxima_llegada, proxima_finalizacion, proximo_turno, tf)
 
         capacidad = capacidad_turno(cp, operarios_por_turno, tiempo)
+        operarios = operarios_por_turno[numero_turno(tiempo)]
         ocupados = sum(fin != HV for fin in fin_pedestales)
         intervalo = siguiente - tiempo
         minutos_capacidad += capacidad * intervalo
         minutos_ociosos += max(0, capacidad - ocupados) * intervalo
+        minutos_operarios += operarios * intervalo
+        # Un pedestal ocupado utiliza un operario. Los operarios que exceden
+        # los trabajos en curso permanecen ociosos, incluso si sobran pedestales.
+        minutos_operarios_ociosos += max(0, operarios - ocupados) * intervalo
         tiempo = siguiente
 
         if tiempo >= tf:
@@ -185,6 +199,11 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
     pedidos_en_proceso = sum(fin != HV for fin in fin_pedestales)
     cumplimiento = 100 * piezas_producidas / demanda_piezas if demanda_piezas else 0.0
     pto = 100 * minutos_ociosos / minutos_capacidad if minutos_capacidad else 0.0
+    pto_operarios = (
+        100 * minutos_operarios_ociosos / minutos_operarios
+        if minutos_operarios
+        else 0.0
+    )
     tr = 100 * piezas_rechazadas / piezas_producidas if piezas_producidas else 0.0
 
     return {
@@ -193,9 +212,6 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
         "CO_T1": co_t1,
         "CO_T2": co_t2,
         "CO_T3": co_t3,
-        "CAP_T1": min(cp, co_t1 // OPERARIOS_POR_PEDESTAL),
-        "CAP_T2": min(cp, co_t2 // OPERARIOS_POR_PEDESTAL),
-        "CAP_T3": min(cp, co_t3 // OPERARIOS_POR_PEDESTAL),
         "PED_LLEGADOS": pedidos_llegados,
         "PED_COMPLETADOS": pedidos_completados,
         "PED_EN_PROCESO": pedidos_en_proceso,
@@ -203,6 +219,7 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
         "COLA_MAX": cola_maxima,
         "CUMPLIMIENTO_%": round(cumplimiento, 2),
         "PTO_%": round(pto, 2),
+        "PTO_O_%": round(pto_operarios, 2),
         "TR_%": round(tr, 3),
         "PROD_H": round(piezas_producidas / horas, 1),
     }
@@ -223,29 +240,53 @@ def ejecutar_escenarios(horas, seed):
     ]
 
 
-def imprimir_tabla(resultados):
-    columnas = [
-        "ESC",
-        "CP",
-        "CO_T1",
-        "CO_T2",
-        "CO_T3",
-        "CAP_T1",
-        "CAP_T2",
-        "CAP_T3",
-        "CUMPLIMIENTO_%",
-        "PTO_%",
-        "PROD_H",
-        "COLA_FINAL",
-    ]
+COLUMNAS_RESULTADOS = [
+    "ESC",
+    "CP",
+    "CO_T1",
+    "CO_T2",
+    "CO_T3",
+    "CUMPLIMIENTO_%",
+    "PTO_%",
+    "PTO_O_%",
+    "TR_%",
+    "PROD_H",
+    "COLA_FINAL",
+]
+
+
+def formatear_tabla(resultados):
     anchos = {
         columna: max(len(columna), *(len(str(fila[columna])) for fila in resultados))
-        for columna in columnas
+        for columna in COLUMNAS_RESULTADOS
     }
-    print("  ".join(columna.ljust(anchos[columna]) for columna in columnas))
-    print("  ".join("-" * anchos[columna] for columna in columnas))
+    lineas = [
+        "  ".join(
+            columna.ljust(anchos[columna]) for columna in COLUMNAS_RESULTADOS
+        ),
+        "  ".join("-" * anchos[columna] for columna in COLUMNAS_RESULTADOS),
+    ]
     for fila in resultados:
-        print("  ".join(str(fila[columna]).ljust(anchos[columna]) for columna in columnas))
+        lineas.append(
+            "  ".join(
+                str(fila[columna]).ljust(anchos[columna])
+                for columna in COLUMNAS_RESULTADOS
+            )
+        )
+    return "\n".join(lineas)
+
+
+def imprimir_tabla(resultados):
+    print(formatear_tabla(resultados))
+
+
+def guardar_resultados(resultados, descripcion):
+    fecha = datetime.now().astimezone().isoformat(timespec="seconds")
+    with ARCHIVO_RESULTADOS.open("a", encoding="utf-8") as archivo:
+        archivo.write(f"=== {fecha} ===\n")
+        archivo.write(f"{descripcion}\n")
+        archivo.write(formatear_tabla(resultados))
+        archivo.write("\n\n")
 
 
 def main():
@@ -254,14 +295,20 @@ def main():
     parser.add_argument("--co-t1", type=int, help="Operarios activos en el turno 1")
     parser.add_argument("--co-t2", type=int, help="Operarios activos en el turno 2")
     parser.add_argument("--co-t3", type=int, help="Operarios activos en el turno 3")
-    parser.add_argument("--horas", type=float, default=720, help="Horizonte en horas")
+    parser.add_argument("--horas", type=float, default=HORAS_SIMULACION, help="Horas a simular.")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     controles = (args.cp, args.co_t1, args.co_t2, args.co_t3)
     if all(valor is None for valor in controles):
-        print("Resultados de los 12 escenarios configurados:")
-        imprimir_tabla(ejecutar_escenarios(args.horas, args.seed))
+        titulo = f"Resultados de los {len(ESCENARIOS)} escenarios configurados"
+        resultados = ejecutar_escenarios(args.horas, args.seed)
+        print(f"{titulo}:")
+        imprimir_tabla(resultados)
+        guardar_resultados(
+            resultados,
+            f"{titulo} | horas={args.horas} | seed={args.seed}",
+        )
         return
 
     if any(valor is None for valor in controles):
@@ -278,6 +325,10 @@ def main():
     print("Resultado del escenario manual:")
     for clave, valor in resultado.items():
         print(f"{clave}: {valor}")
+    guardar_resultados(
+        [resultado],
+        f"Escenario manual | horas={args.horas} | seed={args.seed}",
+    )
 
 
 if __name__ == "__main__":
