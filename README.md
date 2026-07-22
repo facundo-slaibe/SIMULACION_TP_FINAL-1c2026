@@ -53,8 +53,6 @@ El CSV consolidado contiene siete filas adicionales porque los registros de `PED
 - `CO_T1`: operarios activos en el turno 1.
 - `CO_T2`: operarios activos en el turno 2.
 - `CO_T3`: operarios activos en el turno 3.
-- `horas`: horizonte de simulación.
-- `seed`: semilla del generador aleatorio.
 
 ### Supuestos operativos
 
@@ -166,7 +164,7 @@ El horizonte predeterminado es de 8.640 horas, equivalente a 360 días, y la sem
 Para elegir otro horizonte o semilla:
 
 ```powershell
-python simulacion_soldadura.py --horas 720 --seed 25
+python simulacion_soldadura.py --horas 720
 ```
 
 ### Ejecutar un escenario manual
