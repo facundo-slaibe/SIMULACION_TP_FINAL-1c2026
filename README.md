@@ -91,11 +91,13 @@ El reloj avanza directamente al próximo evento. En cada iteración se seleccion
 
 Cuando llega un pedido se generan su cantidad de piezas, rechazos y duración. Si hay capacidad, se asigna al primer pedestal libre; en caso contrario queda en la cola. Cuando termina un trabajo, el pedestal se libera y puede recibir el siguiente pedido pendiente.
 
-## Comparación justa entre escenarios
+## Semillas de los escenarios
 
-Todos los escenarios de una ejecución usan la misma semilla y reinician el generador aleatorio. Por lo tanto, reciben exactamente la misma secuencia de arribos, cantidades solicitadas, duraciones y rechazos.
+Los escenarios predeterminados usan semillas consecutivas para generar demandas diferentes. El parámetro `--seed` representa la semilla inicial: el primer escenario usa ese valor, el segundo usa `seed + 1` y así sucesivamente según el orden de la lista `ESCENARIOS`.
 
-Esto permite que las diferencias se deban solamente a la configuración de pedestales y operarios. Para estudiar la variabilidad aleatoria se recomienda ejecutar varias semillas, usando cada semilla en todos los escenarios antes de comparar promedios.
+Por ejemplo, con `--seed 10`, los 15 escenarios actuales utilizan las semillas 10 a 24. La ejecución continúa siendo reproducible: la misma semilla inicial y la misma lista de escenarios generan nuevamente los mismos resultados.
+
+Como cada escenario recibe una realización aleatoria diferente, las diferencias observadas combinan el efecto de la configuración con la variabilidad de la demanda. Para obtener conclusiones estadísticas se recomienda realizar múltiples corridas con distintas semillas iniciales y comparar promedios e intervalos de confianza.
 
 ## Escenarios configurados
 
@@ -159,7 +161,7 @@ python -m pip install numpy scipy openpyxl fitter pandas matplotlib
 python simulacion_soldadura.py
 ```
 
-El horizonte predeterminado es de 8.640 horas, equivalente a 360 días, y la semilla predeterminada es `0`.
+El horizonte predeterminado es de 8.640 horas, equivalente a 360 días. La semilla inicial predeterminada es `0`, por lo que los escenarios configurados usan semillas consecutivas comenzando en cero.
 
 Para elegir otro horizonte o semilla:
 
@@ -192,7 +194,7 @@ Cada bloque registra:
 - fecha, hora y zona horaria;
 - tipo de corrida;
 - horizonte simulado;
-- semilla utilizada;
+- semilla inicial de los escenarios configurados o semilla del escenario manual;
 - tabla de resultados.
 
 ## Volver a ajustar las FDP

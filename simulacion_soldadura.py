@@ -35,7 +35,7 @@ MINUTOS_POR_TURNO = 8 * 60
 MINUTOS_POR_DIA = 24 * 60
 OPERARIOS_POR_PEDESTAL = 1
 ARCHIVO_RESULTADOS = Path(__file__).with_name("resultados_simulacion.txt")
-HORAS_SIMULACION = 8640  # 1 año
+HORAS_SIMULACION = 720  # 1 año
 
 # FDP ajustadas con Fitter sobre los datos reales (ver FDPs.py).
 IAP_PARAMS = dict(
@@ -233,10 +233,10 @@ def ejecutar_escenarios(horas, seed):
             escenario["co_t2"],
             escenario["co_t3"],
             horas,
-            seed,
+            seed + indice,
             escenario["nombre"],
         )
-        for escenario in ESCENARIOS
+        for indice, escenario in enumerate(ESCENARIOS)
     ]
 
 
@@ -296,7 +296,12 @@ def main():
     parser.add_argument("--co-t2", type=int, help="Operarios activos en el turno 2")
     parser.add_argument("--co-t3", type=int, help="Operarios activos en el turno 3")
     parser.add_argument("--horas", type=float, default=HORAS_SIMULACION, help="Horas a simular.")
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Semilla del escenario manual o semilla inicial de los escenarios configurados.",
+    )
     args = parser.parse_args()
 
     controles = (args.cp, args.co_t1, args.co_t2, args.co_t3)
@@ -307,7 +312,7 @@ def main():
         imprimir_tabla(resultados)
         guardar_resultados(
             resultados,
-            f"{titulo} | horas={args.horas} | seed={args.seed}",
+            f"{titulo} | horas={args.horas} | seed_inicial={args.seed}",
         )
         return
 
