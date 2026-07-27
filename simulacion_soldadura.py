@@ -35,7 +35,7 @@ MINUTOS_POR_TURNO = 8 * 60
 MINUTOS_POR_DIA = 24 * 60
 OPERARIOS_POR_PEDESTAL = 1
 ARCHIVO_RESULTADOS = Path(__file__).with_name("resultados_simulacion.txt")
-HORAS_SIMULACION = 720  # 1 año
+HORAS_SIMULACION = 8640  # 1 año
 
 # FDP ajustadas con Fitter sobre los datos reales (ver FDPs.py).
 IAP_PARAMS = dict(
