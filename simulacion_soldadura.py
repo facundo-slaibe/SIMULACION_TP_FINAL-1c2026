@@ -123,7 +123,7 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
     proximo_turno = proximo_cambio_turno(tiempo)
 
     # Cada posición representa un pedestal. HV significa que está libre.
-    fin_pedestales = [HV] * cp
+    tcp_pedestales = [HV] * cp
     trabajos_en_curso = [None] * cp
     cola = deque()
 
@@ -139,12 +139,12 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
     cola_maxima = 0
 
     while tiempo < tf:
-        proxima_finalizacion = min(fin_pedestales)
+        proxima_finalizacion = min(tcp_pedestales)
         siguiente = min(proxima_llegada, proxima_finalizacion, proximo_turno, tf)
 
         capacidad = capacidad_turno(cp, operarios_por_turno, tiempo)
         operarios = operarios_por_turno[numero_turno(tiempo)]
-        ocupados = sum(fin != HV for fin in fin_pedestales)
+        ocupados = sum(fin != HV for fin in tcp_pedestales)
         intervalo = siguiente - tiempo
         minutos_capacidad += capacidad * intervalo
         minutos_ociosos += max(0, capacidad - ocupados) * intervalo
@@ -158,13 +158,13 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
             break
 
         # Primero se liberan todos los trabajos que terminan en este instante.
-        for i, fin in enumerate(fin_pedestales):
+        for i, fin in enumerate(tcp_pedestales):
             if fin <= tiempo:
                 pedido = trabajos_en_curso[i]
                 piezas_producidas += pedido["piezas"]
                 piezas_rechazadas += pedido["rechazos"]
                 pedidos_completados += 1
-                fin_pedestales[i] = HV
+                tcp_pedestales[i] = HV
                 trabajos_en_curso[i] = None
 
         if tiempo == proxima_llegada:
@@ -185,18 +185,18 @@ def simular(cp, co_t1, co_t2, co_t3, horas, seed=0, nombre="Manual"):
 
         # Despacho FIFO hasta alcanzar la capacidad permitida en este turno.
         capacidad = capacidad_turno(cp, operarios_por_turno, tiempo)
-        ocupados = sum(fin != HV for fin in fin_pedestales)
-        libres = [i for i, fin in enumerate(fin_pedestales) if fin == HV]
+        ocupados = sum(fin != HV for fin in tcp_pedestales)
+        libres = [i for i, fin in enumerate(tcp_pedestales) if fin == HV]
         while cola and ocupados < capacidad and libres:
             i = libres.pop(0)
             pedido = cola.popleft()
             trabajos_en_curso[i] = pedido
-            fin_pedestales[i] = tiempo + pedido["duracion"]
+            tcp_pedestales[i] = tiempo + pedido["duracion"]
             ocupados += 1
 
         cola_maxima = max(cola_maxima, len(cola))
 
-    pedidos_en_proceso = sum(fin != HV for fin in fin_pedestales)
+    pedidos_en_proceso = sum(fin != HV for fin in tcp_pedestales)
     cumplimiento = 100 * piezas_producidas / demanda_piezas if demanda_piezas else 0.0
     pto = 100 * minutos_ociosos / minutos_capacidad if minutos_capacidad else 0.0
     pto_operarios = (
